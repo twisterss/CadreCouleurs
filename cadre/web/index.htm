@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimal-ui" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<link rel="stylesheet" type="text/css" href="lib/cadre/cadre.css" />
+		<link rel="stylesheet" type="text/css" href="lib/spectrum/spectrum.css" />
+		<link rel="apple-touch-icon" sizes="60x60" href="lib/cadre/img/logo-60.png">
+		<link rel="apple-touch-icon" sizes="120x120" href="lib/cadre/img/logo-120.png">
+		<title>Cadre couleurs</title>
+	</head>
+	<body>
+		<div id="header">
+			<input type="button" value="+" id="settings" />
+			<h1>Cadre couleurs</h1>
+
+		</div>
+		<div id="content">
+			<div id="mode-select">
+				<label for="mode">Mode d'affichage&nbsp;:</label>
+				<select id="mode">
+					<option value="off">Éteint</option>
+					<option value="clock">Horloge</option>
+					<option value="fixed">Couleur fixe</option>
+					<option value="gradient">Dégradé aléatoire</option>
+					<option value="geometry">Animations géométriques</option>
+					<option value="text">Texte</option>
+				</select>
+			</div>
+			<div id="config">
+				<div class="config" id="off" data-id="0">
+					<p class="description">
+						Le cadre est éteint. Choisissez un mode ci-dessus pour l'allumer.
+					</p>
+				</div>
+				<div class="config" id="clock" data-id="1">
+					<p class="description">
+						Indique l'heure en couleurs sur le cadre.
+					</p>
+					<input type="hidden" data-send="2" data-auto="timestamp" />
+					<p>
+						<label for="hourColor">Couleur des heures&nbsp;:</label>
+						<input type="color" id="hourColor" value="#ff0000" data-show-buttons="0" data-send="0" />
+					</p>
+					<p>
+						<label for="minuteColor">Couleur des minutes&nbsp;:</label>
+						<input type="color" id="minuteColor" value="#0000ff" data-show-buttons="0" data-send="1" />
+					</p>
+				</div>
+				<div class="config" id="fixed" data-id="2">
+					<p class="description">
+						Affiche une couleur fixe sur la totalité du cadre.
+					</p>
+					<p>
+						<label for="fixedColor">Couleur&nbsp;:</label>
+						<input type="color" id="fixedColor" value="#ffffff" data-show-buttons="0" data-send="0" />
+					</p>
+				</div>
+				<div class="config" id="gradient" data-id="3">
+					<p class="description">
+						Change graduellement la couleur du cadre en choisissant des couleurs au hasard.
+					</p>
+				</div>
+				<div class="config" id="geometry" data-id="4">
+					<p class="description">
+						Anime le cadre avec des formes géométriques simples.
+					</p>
+					<p>
+						<label for="geoColor">Couleur&nbsp;:</label>
+						<input type="color" id="geoColor" value="#ffffff" data-show-buttons="0" data-send="0" />
+					</p>
+				</div>
+				<div class="config" id="text" data-id="5">
+					<p class="description">
+						Fait défiler un texte sur le cadre.
+					</p>
+					<p>
+						<label for="text">Texte&nbsp;:</label>
+						<input type="text" id="text" data-send="2" />
+					</p>
+					<p>
+						<label for="textColor">Couleur du texte&nbsp;:</label>
+						<input type="color" id="textColor" value="#ffffff" data-show-buttons="0" data-send="0" />
+					</p>
+					<p>
+						<label for="backTextColor">Couleur de fond&nbsp;:</label>
+						<input type="color" id="backTextColor" value="#000000" data-show-buttons="0" data-send="1" />
+					</p>
+				</div>
+			</div>
+		</div>
+		<div id="footer">
+			<input type="button" id="send" value="Envoyer" class="action" />
+			<input type="button" id="cancel" value="Annuler" class="action" />
+		</div>
+		<script src="lib/jquery.js"></script>
+		<script src="lib/spectrum/spectrum.js"></script>
+		<script src="lib/cadre/cadre.js"></script>
+	</body>
+</html>
