@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" manifest="index.manifest">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimal-ui" />
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0, minimal-ui" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
@@ -25,9 +25,9 @@
 					<option value="off">Éteint</option>
 					<option value="clock">Horloge</option>
 					<option value="fixed">Couleur fixe</option>
-					<option value="gradient">Dégradé aléatoire</option>
-					<option value="geometry">Animations géométriques</option>
-					<option value="text">Texte</option>
+					<option value="gradient">Dégradé doux</option>
+					<option value="random">Pixels en folie</option>
+					<option value="text">Message</option>
 				</select>
 			</div>
 			<div id="config">
@@ -64,21 +64,17 @@
 						Change graduellement la couleur du cadre en choisissant des couleurs au hasard.
 					</p>
 				</div>
-				<div class="config" id="geometry" data-id="4">
+				<div class="config" id="random" data-id="4">
 					<p class="description">
-						Anime le cadre avec des formes géométriques simples.
-					</p>
-					<p>
-						<label for="geoColor">Couleur&nbsp;:</label>
-						<input type="color" id="geoColor" value="#ffffff" data-show-buttons="0" data-send="0" />
+						Anime le cadre avec des pixels de toutes les couleurs.
 					</p>
 				</div>
 				<div class="config" id="text" data-id="5">
 					<p class="description">
-						Fait défiler un texte sur le cadre.
+						Fait défiler un message sur le cadre.
 					</p>
 					<p>
-						<label for="text">Texte&nbsp;:</label>
+						<label for="text">Message&nbsp;:</label>
 						<input type="text" id="text" data-send="2" />
 					</p>
 					<p>

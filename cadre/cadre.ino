@@ -17,7 +17,7 @@
 #define MODE_CLOCK 1
 #define MODE_COLOR 2
 #define MODE_GRADIENT 3
-#define MODE_GEO 4
+#define MODE_RANDOM 4
 #define MODE_TEXT 5
 #define MODE_INIT 255
 
@@ -80,6 +80,38 @@ bool newOrderReceived = true;
 // Current configuration (used by all modes)
 uint32_t color1 = pixels.color(255, 255, 255), color2 = pixels.color(0, 0, 0);
 char text[MAX_TEXT_SIZE];
+
+/**
+ * Return a random color different enough from the last one.
+ * and not too dark or too bright.
+ * All values rango from 0 to 255.
+ */
+uint32_t randomColor(uint8_t minLumi = 0, uint8_t maxLumi = 255, uint8_t minDist = 0) {
+  static uint8_t oldRed = 0, oldGreen = 0, oldBlue = 0;
+  uint8_t red, green, blue;
+  uint16_t luminance = 0;
+  uint16_t distance = 0;
+  do {
+    // Choose a color
+    red = random(256);
+    green = random(256);
+    blue = random(256);
+    // Compute luminance and distance from last color
+    luminance = red;
+    luminance+= red;
+    luminance+= blue;
+    luminance+= green;
+    luminance+= green;
+    luminance+= green;
+    luminance/= 6;
+    distance = max(max(abs(red - oldRed), abs(green - oldGreen)), abs(blue - oldBlue));
+  } while (distance < minDist || luminance < minLumi || luminance > maxLumi);
+  // Return the color
+  oldRed = red;
+  oldGreen = green;
+  oldBlue = blue;
+  return pixels.color(red, green, blue);
+}
 
 void fixedText(const char* string, uint32_t color, int16_t startX = 0, int16_t startY = 2) {
   uint16_t length = strlen(string);
@@ -197,30 +229,17 @@ void displayConstantColor(bool newDisplay) {
   }
 }
 
+/**
+ * Display random continually changing colors
+ */
 void displayGradient(bool newDisplay) {
-  static uint32_t oldColor, newColor;
+  static uint32_t color;
   static uint8_t remaining = 0;
   if (newDisplay)
     pixels.clear();
   if (newDisplay || remaining == 0) {
     remaining = pixels.width() * pixels.height();
-    oldColor = newColor;
-    uint16_t luminance = 0;
-    while (oldColor == newColor || luminance < 30 || luminance > 225) {
-      // Choose a bright enough random color
-      uint8_t red, green, blue;
-      red = random(256);
-      green = random(256);
-      blue = random(256);
-      newColor = pixels.color(red, green, blue);
-      luminance = red;
-      luminance+= red;
-      luminance+= blue;
-      luminance+= green;
-      luminance+= green;
-      luminance+= green;
-      luminance/= 6;
-    }
+    color = randomColor(20, 200, 100);
   }
   if (skipSteps(300)) {
     // Find a pixel to change
@@ -229,8 +248,8 @@ void displayGradient(bool newDisplay) {
       x = random(pixels.width());
       y = random(pixels.height());
     }
-    while (pixels.get(x, y) == newColor);
-    pixels.set(x, y, newColor);
+    while (pixels.get(x, y) == color);
+    pixels.set(x, y, color);
     pixels.commit();
     remaining--;
   }
@@ -239,37 +258,10 @@ void displayGradient(bool newDisplay) {
 /**
  * Display some geometric shapes
  */
-void displayGeo(bool newDisplay) {
-  static uint8_t step = 0;
-  static uint8_t curX = 0, curY = 0;
-  static bool inverted = 0;
-  if (newDisplay) {
-    step = 0;
-    inverted = 0;
-  }
+void displayRandom(bool newDisplay) {
   if (skipSteps(5)) {
-    if (step == pixels.width() * pixels.height()) {
-      step = 0;
-      inverted = !inverted;
-    }
-    if (step % pixels.height() == 0) {
-      curX = step / pixels.height();
-      for (uint8_t y = 0; y < pixels.height(); y++) {
-        if (curX > 0 && y != curY)
-          pixels.set(curX-1, y, pixels.color(0, 0, 0), inverted, inverted);
-        pixels.set(curX, y, color1, inverted, inverted);
-      }
-    }
-    if (step % pixels.width() == 0) {
-      curY = step / pixels.width();
-      for (uint8_t x = 0; x < pixels.width(); x++) {
-        if (curY > 0 && x != curX)
-          pixels.set(x, curY-1, pixels.color(0, 0, 0), inverted, inverted);
-        pixels.set(x, curY, color1, inverted, inverted);
-      }
-    }
+    pixels.set(random(pixels.width()), random(pixels.height()), randomColor());
     pixels.commit();
-    step++;
   }
 }
 
@@ -311,8 +303,8 @@ void display() {
     case MODE_GRADIENT:
       displayGradient(newOrderReceived);
       break;
-    case MODE_GEO:
-      displayGeo(newOrderReceived);
+    case MODE_RANDOM:
+      displayRandom(newOrderReceived);
       break;
     case MODE_TEXT:
       displayText(newOrderReceived);
@@ -332,7 +324,7 @@ WebResponse listenToRequests(WebRequest &request) {
     // Get the mode
     currentMode = request.params.substring(0, 2).toInt();
     // Get the settings
-    if (currentMode == MODE_CLOCK || currentMode == MODE_COLOR || currentMode == MODE_TEXT || currentMode == MODE_GEO)
+    if (currentMode == MODE_CLOCK || currentMode == MODE_COLOR || currentMode == MODE_TEXT)
       color1 = pixels.color(request.params.substring(2, 5).toInt(), request.params.substring(5, 8).toInt(), request.params.substring(8, 11).toInt());
     if (currentMode == MODE_CLOCK || currentMode == MODE_TEXT)
       color2 = pixels.color(request.params.substring(11, 14).toInt(), request.params.substring(14, 17).toInt(), request.params.substring(17, 20).toInt());

@@ -1,0 +1,12 @@
+CACHE MANIFEST
+# Version 0.0.10
+ 
+index.htm
+lib/jquery.js
+lib/spectrum/spectrum.css
+lib/spectrum/spectrum.js
+lib/cadre/cadre.css
+lib/cadre/cadre.js
+lib/cadre/lobster.woff
+lib/cadre/img/logo-120.png
+lib/cadre/img/logo-60.png

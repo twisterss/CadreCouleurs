@@ -1,9 +1,21 @@
-@import url(http://fonts.googleapis.com/css?family=Lobster);
+@font-face {
+  font-family: 'Lobster';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Lobster'), url(lobster.woff) format('woff');
+}
 
 body {
 	margin: 0;
 	padding: 0;
 	font-size: 18px;
+	padding-bottom: 40px;
+}
+
+@media all and (orientation:landscape) {
+	body {
+		font-size: 12px;
+	}
 }
 
 label {
