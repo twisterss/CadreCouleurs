@@ -171,9 +171,9 @@ void displayInit(bool newDisplay) {
     startCounter = 0;
   }
   // End the initialization after some time
-  if (startCounter >= 30000) {
+  if (startCounter >= 30000 || server.localIP() == IPAddress(0, 0, 0, 0)) {
     displayGradient(true);
-    currentMode = MODE_GRADIENT;
+    currentMode = MODE_RANDOM;
   } else {
     displayText(newDisplay);
     startCounter++;
