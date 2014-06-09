@@ -1,3 +1,4 @@
+#include <avr/wdt.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <Time.h> 
@@ -10,6 +11,7 @@
 
 // Minimum delay between two display states (microseconds)
 #define DISPLAY_DELAY 1000
+// Maximum number of characters for a displayed message
 #define MAX_TEXT_SIZE 30
 
 // Working modes
@@ -104,7 +106,7 @@ uint32_t randomColor(uint8_t minLumi = 0, uint8_t maxLumi = 255, uint8_t minDist
     luminance+= green;
     luminance+= green;
     luminance/= 6;
-    distance = max(max(abs(red - oldRed), abs(green - oldGreen)), abs(blue - oldBlue));
+    distance = (abs(red - oldRed) + abs(green - oldGreen) + abs(blue - oldBlue)) / 3;
   } while (distance < minDist || luminance < minLumi || luminance > maxLumi);
   // Return the color
   oldRed = red;
@@ -170,13 +172,11 @@ void displayInit(bool newDisplay) {
     address.toCharArray(text, MAX_TEXT_SIZE);
     startCounter = 0;
   }
-  // End the initialization after some time
-  if (startCounter >= 30000 || server.localIP() == IPAddress(0, 0, 0, 0)) {
-    displayGradient(true);
+  // Trigger the text display until the text has been entirely seen once
+  if (server.localIP() == IPAddress(0, 0, 0, 0) || displayText(newDisplay)) {
+    // Next step: default start mode: random
+    displayRandom(true);
     currentMode = MODE_RANDOM;
-  } else {
-    displayText(newDisplay);
-    startCounter++;
   }
 }
 
@@ -202,7 +202,7 @@ void displayClock(bool newDisplay) {
     if (tmpString.length() < 2)
       tmpString = "0" + tmpString;
     tmpString.toCharArray(tmpChars, 3);
-    fixedText(tmpChars, color1, 1, 0);
+    fixedText(tmpChars, color1, 0, 0);
     tmpString = String(minute());
     if (tmpString.length() < 2)
       tmpString = "0" + tmpString;
@@ -239,7 +239,7 @@ void displayGradient(bool newDisplay) {
     pixels.clear();
   if (newDisplay || remaining == 0) {
     remaining = pixels.width() * pixels.height();
-    color = randomColor(20, 200, 100);
+    color = randomColor(20, 200, 60);
   }
   if (skipSteps(300)) {
     // Find a pixel to change
@@ -266,9 +266,10 @@ void displayRandom(bool newDisplay) {
 }
 
 /**
- * Display a sliding text
+ * Display a sliding text.
+ * Returns if it is an end of text
  */
-void displayText(bool newDisplay) {
+bool displayText(bool newDisplay) {
   static uint16_t columns = 0;
   static uint16_t column = 0;
   if (newDisplay || column == columns) {
@@ -281,6 +282,7 @@ void displayText(bool newDisplay) {
     pixels.commit();
     column++;
   }
+  return column == columns;
 }
 
 /**
@@ -319,7 +321,7 @@ void display() {
 WebResponse listenToRequests(WebRequest &request) {
   if (request.resource == "setMode") {
     // Received a request to change the current mode
-    // Decode a bit
+    // Decode url-encoding
     request.params.replace("%20", " ");
     // Get the mode
     currentMode = request.params.substring(0, 2).toInt();
@@ -345,11 +347,13 @@ WebResponse listenToRequests(WebRequest &request) {
  * Initialization procedure
  */
 void setup() {
-  // Random generator initialization
-  randomSeed(analogRead(0));
   // Network initialization
   server.registerServeMethod(listenToRequests);
   server.begin(mac);
+  // Watchdog initialization, only after long network intialization
+  wdt_enable(WDTO_4S);
+  // Random generator initialization
+  randomSeed(analogRead(0));
   // Pixels initialization
   pixels.begin();
   pixels.commit(); // Initialize all pixels to 'off'
@@ -369,4 +373,6 @@ void loop() {
     display();
     lastDisplayEvent = now;
   }
+  // Tell the watchdog the program is running
+  wdt_reset();
 }

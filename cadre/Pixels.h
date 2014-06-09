@@ -30,12 +30,12 @@ class Pixels {
     /**
      * Set the color of a pixel in local memory
      */
-    void set(uint8_t x, uint8_t y, uint32_t color, uint8_t invertX = 0, uint8_t invertY = 0);
+    void set(uint8_t x, uint8_t y, uint32_t color);
 
     /**
      * Get the color of a pixel in local memory
      */
-    uint32_t get(uint8_t x, uint8_t y, uint8_t invertX = 0, uint8_t invertY = 0);
+    uint32_t get(uint8_t x, uint8_t y);
 
     /**
      * Display what is in local memory
@@ -67,6 +67,6 @@ class Pixels {
     /**
      * Get the LED number from a pixel location
      */
-    uint32_t getLedFromPixel(uint8_t x, uint8_t y, uint8_t invertX = 0, uint8_t invertY = 0);
+    uint32_t getLedFromPixel(uint8_t x, uint8_t y);
 };
 

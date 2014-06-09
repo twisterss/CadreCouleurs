@@ -4,12 +4,12 @@ void Pixels::begin() {
   strip.begin(); 
 }
 
-void Pixels::set(uint8_t x, uint8_t y, uint32_t color, uint8_t invertX, uint8_t invertY) {
-  strip.setPixelColor(getLedFromPixel(x, y, invertX, invertY), color);
+void Pixels::set(uint8_t x, uint8_t y, uint32_t color) {
+  strip.setPixelColor(getLedFromPixel(x, y), color);
 }
 
-uint32_t Pixels::get(uint8_t x, uint8_t y, uint8_t invertX, uint8_t invertY) {
-  return strip.getPixelColor(getLedFromPixel(x, y, invertX, invertY));
+uint32_t Pixels::get(uint8_t x, uint8_t y) {
+  return strip.getPixelColor(getLedFromPixel(x, y));
 }
 
 void Pixels::commit() {
@@ -34,10 +34,6 @@ uint8_t Pixels::height() {
   return PIXELS_Y;
 }
 
-uint32_t Pixels::getLedFromPixel(uint8_t x, uint8_t y, uint8_t invertX, uint8_t invertY) {
-  if (invertX)
-    x = PIXELS_X - 1 - x;
-  if (invertY)
-    y = PIXELS_Y - 1 - y;
+uint32_t Pixels::getLedFromPixel(uint8_t x, uint8_t y) {
   return (PIXELS_Y - 1 - y) * PIXELS_X + (((PIXELS_Y - 1 - y) & 1) == 0 ? (PIXELS_X - 1 - x) : x);
 }
