@@ -1,6 +1,8 @@
 #include <avr/wdt.h>
 #include <SPI.h>
 #include <Ethernet.h>
+#include <Wire.h>  
+#include "RTCControl.h"
 #include <Time.h> 
 #include <Adafruit_NeoPixel.h>
 #include "Pixels.h"
@@ -77,11 +79,17 @@ Pixels pixels(STRIP_PIN);
 
 // Display state
 unsigned long lastDisplayEvent = 0;
-uint8_t currentMode = MODE_INIT;
 bool newOrderReceived = true;
+bool newOrderInternal = false;
+
 // Current configuration (used by all modes)
-uint32_t color1 = pixels.color(255, 255, 255), color2 = pixels.color(0, 0, 0);
-char text[MAX_TEXT_SIZE];
+typedef struct State {
+  uint8_t mode;
+  uint32_t color1;
+  uint32_t color2;
+  char text[MAX_TEXT_SIZE];
+} State;
+State current;
 
 /**
  * Return a random color different enough from the last one.
@@ -169,14 +177,22 @@ void displayInit(bool newDisplay) {
   // Display the IP address at the start
   if (newDisplay) {
     String address = String(server.localIP()[0]) + "." + String(server.localIP()[1]) + "." + String(server.localIP()[2]) + "." + String(server.localIP()[3]);
-    address.toCharArray(text, MAX_TEXT_SIZE);
+    address.toCharArray(current.text, MAX_TEXT_SIZE);
     startCounter = 0;
+    
+    current.color1 = pixels.color(255, 255, 255);
+    current.color2 = pixels.color(0, 0, 0);
   }
   // Trigger the text display until the text has been entirely seen once
-  if (server.localIP() == IPAddress(0, 0, 0, 0) || displayText(newDisplay)) {
-    // Next step: default start mode: random
-    displayRandom(true);
-    currentMode = MODE_RANDOM;
+  if (server.localIP() == IPAddress(0, 0, 0, 0)) { 
+    // No connection: demo mode
+    newOrderInternal = true;
+    current.mode = MODE_RANDOM;
+  } else if (displayText(newDisplay)) {
+    // IP displayed: back to last mode
+    newOrderInternal = true;
+    // Load the state from RTC RAM
+    RTC.readBytesInRam(0, sizeof(current), (uint8_t*) &current);
   }
 }
 
@@ -202,12 +218,12 @@ void displayClock(bool newDisplay) {
     if (tmpString.length() < 2)
       tmpString = "0" + tmpString;
     tmpString.toCharArray(tmpChars, 3);
-    fixedText(tmpChars, color1, 0, 0);
+    fixedText(tmpChars, current.color1, 0, 0);
     tmpString = String(minute());
     if (tmpString.length() < 2)
       tmpString = "0" + tmpString;
     tmpString.toCharArray(tmpChars, 3);
-    fixedText(tmpChars, color2, 1, 5);
+    fixedText(tmpChars, current.color2, 1, 5);
     pixels.commit();
   }
 }
@@ -222,7 +238,7 @@ void displayConstantColor(bool newDisplay) {
   if (skipSteps(50)) {
     if (y < pixels.height()) {
       for (uint8_t x = 0; x < pixels.width(); x++)
-          pixels.set(x, y, color1);
+          pixels.set(x, y, current.color1);
       pixels.commit();
       y++;
     }
@@ -273,12 +289,12 @@ bool displayText(bool newDisplay) {
   static uint16_t columns = 0;
   static uint16_t column = 0;
   if (newDisplay || column == columns) {
-    columns = strlen(text) * 6 + pixels.width();
+    columns = strlen(current.text) * 6 + pixels.width();
     column = 0;
   }
   if (skipSteps(100)) {
-    pixels.clear(color2);
-    fixedText(text, color1, pixels.width() - 1 - column);
+    pixels.clear(current.color2);
+    fixedText(current.text, current.color1, pixels.width() - 1 - column);
     pixels.commit();
     column++;
   }
@@ -289,7 +305,7 @@ bool displayText(bool newDisplay) {
  * Manage one generic display step
  */
 void display() {
-  switch(currentMode) {
+  switch(current.mode) {
     case MODE_INIT:
       displayInit(newOrderReceived);
       break;
@@ -312,7 +328,8 @@ void display() {
       displayText(newOrderReceived);
       break;
   }
-  newOrderReceived = false;
+  newOrderReceived = newOrderInternal;
+  newOrderInternal = false;
 }
 
 /**
@@ -324,16 +341,22 @@ WebResponse listenToRequests(WebRequest &request) {
     // Decode url-encoding
     request.params.replace("%20", " ");
     // Get the mode
-    currentMode = request.params.substring(0, 2).toInt();
+    current.mode = request.params.substring(0, 2).toInt();
     // Get the settings
-    if (currentMode == MODE_CLOCK || currentMode == MODE_COLOR || currentMode == MODE_TEXT)
-      color1 = pixels.color(request.params.substring(2, 5).toInt(), request.params.substring(5, 8).toInt(), request.params.substring(8, 11).toInt());
-    if (currentMode == MODE_CLOCK || currentMode == MODE_TEXT)
-      color2 = pixels.color(request.params.substring(11, 14).toInt(), request.params.substring(14, 17).toInt(), request.params.substring(17, 20).toInt());
-    if (currentMode == MODE_TEXT)
-      request.params.substring(20).toCharArray(text, MAX_TEXT_SIZE);
-    if (currentMode == MODE_CLOCK)
-      setTime(request.params.substring(20).toInt());
+    if (current.mode == MODE_CLOCK || current.mode == MODE_COLOR || current.mode == MODE_TEXT)
+      current.color1 = pixels.color(request.params.substring(2, 5).toInt(), request.params.substring(5, 8).toInt(), request.params.substring(8, 11).toInt());
+    if (current.mode == MODE_CLOCK || current.mode == MODE_TEXT)
+      current.color2 = pixels.color(request.params.substring(11, 14).toInt(), request.params.substring(14, 17).toInt(), request.params.substring(17, 20).toInt());
+    if (current.mode == MODE_TEXT)
+      request.params.substring(20).toCharArray(current.text, MAX_TEXT_SIZE);
+    if (current.mode == MODE_CLOCK) {
+      // Set the current time
+      time_t time = request.params.substring(20).toInt();
+      RTC.set(time);
+      setTime(time);
+    }
+    // Save the state in RTC RAM
+    RTC.writeBytesInRam(0, sizeof(current), (uint8_t*) &current);
     newOrderReceived = true;
     // Send an OK response
     WebResponse response = WebResponse::createText("OK");
@@ -347,6 +370,8 @@ WebResponse listenToRequests(WebRequest &request) {
  * Initialization procedure
  */
 void setup() {
+  // Initial state
+  current.mode = MODE_INIT;
   // Network initialization
   server.registerServeMethod(listenToRequests);
   server.begin(mac);
@@ -354,6 +379,8 @@ void setup() {
   wdt_enable(WDTO_4S);
   // Random generator initialization
   randomSeed(analogRead(0));
+  // Time (RTC clock) initialization
+  setSyncProvider(RTC.get);
   // Pixels initialization
   pixels.begin();
   pixels.commit(); // Initialize all pixels to 'off'
