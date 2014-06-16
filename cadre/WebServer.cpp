@@ -1,49 +1,38 @@
-/*
-  Web server to control the Arduino
- */
-
 #include "WebServer.h"
-    
-/**
-  * Registers a callback used to serve requests.
-  * The callback receives a WebRequest and returns a WebResponse.
-  * If the WebResponse is a null response, the SD card will be searched for a file of this name
-  */
+
 void WebServer::registerServeMethod(DynamicServeMethod callback) {
   this->callback = callback;
 }
 
-/**
-  * Start the server, Ethernet connection using DHCP.
-  * Warning: DHCP has a cost in memory.
-  * The first argument is the MAC address.
-  */
 void WebServer::begin(byte mac[6]) {
+  if (started)
+    return;
   Ethernet.begin(mac);
   this->server.begin();
+  started = true;
 }
 
-/**
-  * Start the server, Ethernet connection not using DHCP.
-  * The first argument is the MAC address.
-  * The second argument is the IP address.
-  */
+
 void WebServer::begin(byte mac[6], const IPAddress &ip) {
+  if (started)
+    return;
   Ethernet.begin(mac, ip);
   this->server.begin();
 }
 
-/**
-  * Get the server local IP address
-  */
+bool WebServer::isConnected() {
+  return localIP() != IPAddress(0, 0, 0, 0);
+}
+
 IPAddress WebServer::localIP() {
+  if (!started)
+    return IPAddress(0, 0, 0, 0);
   return Ethernet.localIP();
 }
 
-/**
-  * Serve one client if there is a request
-  */
 void WebServer::serve() {
+  if (!started)
+    return;
   // listen for incoming clients
   EthernetClient client = this->server.available();
   this->client = &client;
@@ -107,10 +96,6 @@ void WebServer::serve() {
   }
 }
 
-/**
-  * Send a response to the client
-  * The request is already parsed
-  */
 void WebServer::sendResponse() {
   if (callback != NULL) {
     // Ask the callback for a dynamic response

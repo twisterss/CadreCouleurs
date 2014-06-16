@@ -1,6 +1,6 @@
 /**
- * Serves files from the SD card, and interprets
- * other requests as commands
+ * Serves HTTP requests.
+ * The user can use any response function.
  */
 
 #include <Arduino.h>
@@ -27,6 +27,8 @@ class WebServer {
     WebRequest request;
     // Dynamic server callback
     DynamicServeMethod callback;
+    // State: started or not
+    bool started;
     
   public:
     /**
@@ -36,7 +38,8 @@ class WebServer {
     WebServer(const unsigned short &port):
       server(port),
       client(NULL),
-      callback(NULL)
+      callback(NULL),
+      started(false)
     {
     }
     
@@ -65,6 +68,11 @@ class WebServer {
      * Get the server local IP address
      */
     IPAddress localIP();
+    
+    /**
+     * Return if the server is actually listening
+     */
+    bool isConnected();
     
     /**
      * Server one client if there is a request

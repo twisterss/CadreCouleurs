@@ -10,6 +10,7 @@
 
 // Hardware configuration
 #define STRIP_PIN 6
+#define BUTTON_PIN 7
 
 // Minimum delay between two display states (microseconds)
 #define DISPLAY_DELAY 1000
@@ -24,7 +25,7 @@
 #define MODE_RANDOM 4
 #define MODE_TEXT 5
 #define MODE_DEMO 6
-#define MODE_INIT 255
+#define MODE_ADDRESS 255
 
 // MAC address of the server
 byte mac[] = {
@@ -91,6 +92,20 @@ typedef struct State {
   char text[MAX_TEXT_SIZE];
 } State;
 State current;
+
+/**
+ * Load the current state from RTC RAM
+ */
+void loadCurrent() {
+  RTC.readBytesInRam(0, sizeof(current), (uint8_t*) &current);
+}
+
+/**
+ * Save the current state in RTC RAM
+ */
+void saveCurrent() {
+  RTC.writeBytesInRam(0, sizeof(current), (uint8_t*) &current);
+}
 
 /**
  * Return a random color different enough from the last one.
@@ -173,25 +188,20 @@ bool skipSteps(uint16_t steps) {
   return false;
 }
 
-void displayInit(bool newDisplay) {
-  static uint16_t startCounter = 0;
-  // Display the IP address at the start
+/**
+ * Display the IP address of the frame once
+ */
+void displayAddress(bool newDisplay) {
   if (newDisplay) {
     String address = String(server.localIP()[0]) + "." + String(server.localIP()[1]) + "." + String(server.localIP()[2]) + "." + String(server.localIP()[3]);
     address.toCharArray(current.text, MAX_TEXT_SIZE);
     current.color1 = pixels.color(255, 255, 255);
     current.color2 = pixels.color(0, 0, 0);
-    startCounter = 0;
   }
-  if (server.localIP() == IPAddress(0, 0, 0, 0)) { 
-    // No connection: demo mode
-    newOrderInternal = true;
-    current.mode = MODE_DEMO;
-  } else if (displayText(newDisplay)) {
+  if (displayText(newDisplay)) {
     // IP displayed: back to last mode
     newOrderInternal = true;
-    // Load the state from RTC RAM
-    RTC.readBytesInRam(0, sizeof(current), (uint8_t*) &current);
+    loadCurrent();
   }
 }
 
@@ -353,9 +363,6 @@ void displayDemo(bool newDisplay) {
  */
 void display() {
   switch(current.mode) {
-    case MODE_INIT:
-      displayInit(newOrderReceived);
-      break;
     case MODE_OFF:
       displayOff(newOrderReceived);
       break;
@@ -376,6 +383,9 @@ void display() {
       break;
     case MODE_DEMO:
       displayDemo(newOrderReceived);
+      break;
+    case MODE_ADDRESS:
+      displayAddress(newOrderReceived);
       break;
   }
   newOrderReceived = newOrderInternal;
@@ -406,7 +416,7 @@ WebResponse listenToRequests(WebRequest &request) {
       setTime(time);
     }
     // Save the state in RTC RAM
-    RTC.writeBytesInRam(0, sizeof(current), (uint8_t*) &current);
+    saveCurrent();
     newOrderReceived = true;
     // Send an OK response
     WebResponse response = WebResponse::createText("OK");
@@ -417,23 +427,43 @@ WebResponse listenToRequests(WebRequest &request) {
 }
 
 /**
+ * Check the current state of the button.
+ * Used to display the IP address
+ */
+void checkButton() {
+  if (digitalRead(BUTTON_PIN) == LOW && current.mode != MODE_ADDRESS && server.isConnected()) {
+    current.mode = MODE_ADDRESS;
+    newOrderReceived = true;
+  }
+}
+
+/**
  * Initialization procedure
  */
 void setup() {
-  // Initial state
-  current.mode = MODE_INIT;
+  // Pins initialization
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
   // Pixels initialization
   pixels.begin();
-  pixels.commit(); // Initialize all pixels to 'off'
-  // Network initialization
-  server.registerServeMethod(listenToRequests);
-  server.begin(mac);
+  // Network initialization (skiped if the button is pushed)
+  if (digitalRead(BUTTON_PIN) == HIGH) {
+    server.registerServeMethod(listenToRequests);
+    server.begin(mac);
+  }
   // Watchdog initialization, only after long network intialization
   wdt_enable(WDTO_4S);
   // Random generator initialization
   randomSeed(analogRead(0));
   // Time (RTC clock) initialization
   setSyncProvider(RTC.get);
+  // Initial mode selection
+  if (!server.isConnected()) { 
+    // No connection: demo mode
+    current.mode = MODE_DEMO;
+  } else {
+    // Connection: back to last mode
+    loadCurrent();
+  }
 }
 
 /**
@@ -442,6 +472,8 @@ void setup() {
 void loop() {
   // Serve one HTTP request if any
   server.serve();
+  // Check the button
+  checkButton();
   // Display periodically
   static unsigned long lastDisplayEvent = 0;
   const unsigned long now = micros();
