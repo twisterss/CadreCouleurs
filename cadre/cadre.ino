@@ -23,6 +23,7 @@
 #define MODE_GRADIENT 3
 #define MODE_RANDOM 4
 #define MODE_TEXT 5
+#define MODE_DEMO 6
 #define MODE_INIT 255
 
 // MAC address of the server
@@ -178,16 +179,14 @@ void displayInit(bool newDisplay) {
   if (newDisplay) {
     String address = String(server.localIP()[0]) + "." + String(server.localIP()[1]) + "." + String(server.localIP()[2]) + "." + String(server.localIP()[3]);
     address.toCharArray(current.text, MAX_TEXT_SIZE);
-    startCounter = 0;
-    
     current.color1 = pixels.color(255, 255, 255);
     current.color2 = pixels.color(0, 0, 0);
+    startCounter = 0;
   }
-  // Trigger the text display until the text has been entirely seen once
   if (server.localIP() == IPAddress(0, 0, 0, 0)) { 
     // No connection: demo mode
     newOrderInternal = true;
-    current.mode = MODE_RANDOM;
+    current.mode = MODE_DEMO;
   } else if (displayText(newDisplay)) {
     // IP displayed: back to last mode
     newOrderInternal = true;
@@ -302,6 +301,54 @@ bool displayText(bool newDisplay) {
 }
 
 /**
+ * Display a bit of everything for a demo
+ */
+void displayDemo(bool newDisplay) {
+  static uint8_t mode;
+  static uint16_t duration;
+  bool newMode = false;
+  if (newDisplay) {
+    mode = MODE_RANDOM;
+    duration = 0;
+    newMode = true;
+  }
+  if (duration >= 30000) {
+    // Change the mode
+    if (mode == MODE_RANDOM) {
+      mode = MODE_TEXT;
+      strcpy(current.text, "Cadre couleurs");
+      current.color1 = pixels.color(255, 255, 255);
+      current.color2 = pixels.color(0, 0, 0);
+    } else if (mode == MODE_TEXT) {
+      mode = MODE_GRADIENT;
+    } else if (mode == MODE_GRADIENT) {
+      mode = MODE_CLOCK;
+      current.color1 = pixels.color(180, 0, 0);
+      current.color2 = pixels.color(100, 100, 0);
+    } else {
+      mode = MODE_RANDOM;
+    }
+    newMode = true;
+    duration = 0;
+  }
+  switch(mode) {
+    case MODE_CLOCK:
+      displayClock(newMode);
+      break;
+    case MODE_GRADIENT:
+      displayGradient(newMode);
+      break;
+    case MODE_RANDOM:
+      displayRandom(newMode);
+      break;
+    case MODE_TEXT:
+      displayText(newMode);
+      break;
+  }
+  duration++;
+}
+
+/**
  * Manage one generic display step
  */
 void display() {
@@ -326,6 +373,9 @@ void display() {
       break;
     case MODE_TEXT:
       displayText(newOrderReceived);
+      break;
+    case MODE_DEMO:
+      displayDemo(newOrderReceived);
       break;
   }
   newOrderReceived = newOrderInternal;
@@ -372,6 +422,9 @@ WebResponse listenToRequests(WebRequest &request) {
 void setup() {
   // Initial state
   current.mode = MODE_INIT;
+  // Pixels initialization
+  pixels.begin();
+  pixels.commit(); // Initialize all pixels to 'off'
   // Network initialization
   server.registerServeMethod(listenToRequests);
   server.begin(mac);
@@ -381,9 +434,6 @@ void setup() {
   randomSeed(analogRead(0));
   // Time (RTC clock) initialization
   setSyncProvider(RTC.get);
-  // Pixels initialization
-  pixels.begin();
-  pixels.commit(); // Initialize all pixels to 'off'
 }
 
 /**
