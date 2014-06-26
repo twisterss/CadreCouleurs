@@ -9,7 +9,8 @@
 #include "WebServer.h"
 
 // Hardware configuration
-#define STRIP_PIN 6
+#define STRIP_PIN_DATA 6
+#define STRIP_PIN_POWER A3
 #define BUTTON_PIN 7
 
 // Minimum delay between two display states (microseconds)
@@ -77,7 +78,7 @@ const byte letters[38][5] = {
 // Web server
 WebServer server(80);
 // LED strip
-Pixels pixels(STRIP_PIN);
+Pixels pixels(STRIP_PIN_DATA, STRIP_PIN_POWER);
 
 // Display state
 unsigned long lastDisplayEvent = 0;
@@ -210,8 +211,7 @@ void displayAddress(bool newDisplay) {
  */
 void displayOff(bool newDisplay) {
   if (newDisplay) {
-    pixels.clear();
-    pixels.commit();
+    pixels.switchOff();
   }
 }
 

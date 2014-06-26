@@ -1,7 +1,41 @@
 #include "Pixels.h"
 
 void Pixels::begin() {
+    // Cut power
+  pinMode(powerPin, OUTPUT);
+  digitalWrite(powerPin, LOW);
+  // Initialize the strip
   strip.begin(); 
+  // Disconnect the data pin (start as off)
+  pinMode(dataPin, INPUT);
+  digitalWrite(dataPin, LOW);
+}
+
+void Pixels::switchOn() {
+  if (!isOn) {
+    // Power the strip
+    digitalWrite(powerPin, HIGH);
+    delay(1000);
+    // Connect the data pin
+    pinMode(dataPin, OUTPUT);
+    digitalWrite(dataPin, LOW);
+    isOn = true;
+  }
+}
+
+void Pixels::switchOff() {
+  if (isOn) {
+    // Set the strip black
+    clear();
+    commit();
+    delay(1000);
+    // Disconnect the data pin
+    pinMode(dataPin, INPUT);
+    digitalWrite(dataPin, LOW);
+    // Cut power
+    digitalWrite(powerPin, LOW);
+    isOn = false;
+  }
 }
 
 void Pixels::set(uint8_t x, uint8_t y, uint32_t color) {
@@ -13,6 +47,7 @@ uint32_t Pixels::get(uint8_t x, uint8_t y) {
 }
 
 void Pixels::commit() {
+  switchOn();
   strip.show();
 }
 

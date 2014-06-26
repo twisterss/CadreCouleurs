@@ -9,16 +9,42 @@
 #define PIXELS_Y 10
 
 class Pixels {
-   
-  public:
+
+  private:
+
     // LED strip
     Adafruit_NeoPixel strip;
+
+    /**
+     * Get the LED number from a pixel location
+     */
+    uint32_t getLedFromPixel(uint8_t x, uint8_t y);
+
+    /**
+     * Pin to send data to the strip
+     */
+    uint8_t dataPin;
+
+    /**
+     * Pin to switch the strip on and off
+     */
+    uint8_t powerPin;
+
+    /**
+     * Is the strip currently on?
+     */
+    bool isOn;
+   
+  public:
     
     /**
      * Pixels constructor
      */
-    Pixels(uint8_t pin):
-      strip(PIXELS_X*PIXELS_Y, pin, NEO_GRB + NEO_KHZ800)
+    Pixels(uint8_t dataPin, uint8_t powerPin):
+      strip(PIXELS_X*PIXELS_Y, dataPin, NEO_GRB + NEO_KHZ800),
+      dataPin(dataPin),
+      powerPin(powerPin),
+      isOn(false)
     {
     }
     
@@ -26,6 +52,17 @@ class Pixels {
      * Begin controlling the pixels
      */
     void begin();
+
+    /**
+     * Switch the strip ON if not already.
+     */
+    void switchOn();
+
+    /**
+     * Switch the strip OFF if not already.
+     * Cut the power to the strip
+     */
+    void switchOff();
 
     /**
      * Set the color of a pixel in local memory
@@ -61,12 +98,5 @@ class Pixels {
      * Get the height (in pixels)
      */
     uint8_t height();
-
-  private:
-
-    /**
-     * Get the LED number from a pixel location
-     */
-    uint32_t getLedFromPixel(uint8_t x, uint8_t y);
 };
 
