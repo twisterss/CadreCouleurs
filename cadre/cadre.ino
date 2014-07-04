@@ -26,6 +26,7 @@
 #define MODE_RANDOM 4
 #define MODE_TEXT 5
 #define MODE_DEMO 6
+#define MODE_ALARM 7
 #define MODE_ADDRESS 255
 
 // MAC address of the server
@@ -90,6 +91,8 @@ typedef struct State {
   uint8_t mode;
   uint32_t color1;
   uint32_t color2;
+  uint8_t hours;
+  uint8_t minutes;
   char text[MAX_TEXT_SIZE];
 } State;
 State current;
@@ -140,6 +143,24 @@ uint32_t randomColor(uint8_t minLumi = 0, uint8_t maxLumi = 255, uint8_t minDist
   return pixels.color(red, green, blue);
 }
 
+/**
+ * Mix 2 colors together.
+ * If step = 0, this is color1, if step = maxStep, this is color2, between, this is a mix
+ */
+uint32_t transitionColor(uint8_t step, uint8_t maxStep, uint32_t color1, uint32_t color2 = 0) {
+  uint16_t r1, g1, b1, r2, g2, b2;
+  r1 = (uint8_t) (color1 >> 16); g1 = (uint8_t) (color1 >> 8); b1 = (uint8_t) color1; 
+  r2 = (uint8_t) (color2 >> 16); g2 = (uint8_t) (color2 >> 8); b2 = (uint8_t) color2; 
+  r1 *= maxStep - step; g1*= maxStep - step; b1 *= maxStep - step;
+  r2 *= step; g2*= step; b2 *= step;
+  r1+= r2; g1+= g2; b1+= b2;
+  r1/= maxStep; g1/= maxStep; b1/= maxStep; 
+  return pixels.color(r1, g1, b1);
+}
+
+/**
+ * Print a fixed text on the display
+ */
 void fixedText(const char* string, uint32_t color, int16_t startX = 0, int16_t startY = 2) {
   uint16_t length = strlen(string);
   uint16_t letterIndex = 0;
@@ -173,6 +194,26 @@ void fixedText(const char* string, uint32_t color, int16_t startX = 0, int16_t s
     if (column >= 6)
       column = 0;
   }
+}
+
+
+/**
+ * Print the current time on the display
+ */
+void fixedTime(uint32_t hoursColor, uint32_t minutesColor, uint32_t backgroundColor = 0) {
+    pixels.clear(backgroundColor);
+    char tmpChars[3];
+    String tmpString;
+    tmpString = String(hour());
+    if (tmpString.length() < 2)
+      tmpString = "0" + tmpString;
+    tmpString.toCharArray(tmpChars, 3);
+    fixedText(tmpChars, hoursColor, 0, 0);
+    tmpString = String(minute());
+    if (tmpString.length() < 2)
+      tmpString = "0" + tmpString;
+    tmpString.toCharArray(tmpChars, 3);
+    fixedText(tmpChars, minutesColor, 1, 5);
 }
 
 /**
@@ -220,19 +261,7 @@ void displayOff(bool newDisplay) {
  */
 void displayClock(bool newDisplay) {
   if (newDisplay || skipSteps(1000)) {
-    pixels.clear();
-    char tmpChars[3];
-    String tmpString;
-    tmpString = String(hour());
-    if (tmpString.length() < 2)
-      tmpString = "0" + tmpString;
-    tmpString.toCharArray(tmpChars, 3);
-    fixedText(tmpChars, current.color1, 0, 0);
-    tmpString = String(minute());
-    if (tmpString.length() < 2)
-      tmpString = "0" + tmpString;
-    tmpString.toCharArray(tmpChars, 3);
-    fixedText(tmpChars, current.color2, 1, 5);
+    fixedTime(current.color1, current.color2);
     pixels.commit();
   }
 }
@@ -260,21 +289,31 @@ void displayConstantColor(bool newDisplay) {
 void displayGradient(bool newDisplay) {
   static uint32_t color;
   static uint8_t remaining = 0;
-  if (newDisplay)
-    pixels.clear();
   if (newDisplay || remaining == 0) {
-    remaining = pixels.width() * pixels.height();
+    // Select a color
     color = randomColor(20, 200, 60);
+    // Count the number of pixels to change
+    remaining = 0;
+    for (uint8_t x = 0; x < pixels.width(); x++)
+      for (uint8_t y = 0; y < pixels.height(); y++)
+        if (pixels.get(x, y) != color)
+          remaining++;
   }
   if (skipSteps(300)) {
     // Find a pixel to change
-    uint8_t x, y;
-    do {
-      x = random(pixels.width());
-      y = random(pixels.height());
+    uint8_t toChange = random(remaining);
+    bool done  = false;
+    for (uint8_t x = 0; x < pixels.width() && !done; x++) {
+      for (uint8_t y = 0; y < pixels.height() && !done; y++) {
+        if (pixels.get(x, y) != color) {
+          if (toChange == 0) {
+            pixels.set(x, y, color);
+            done = true;
+          }
+          toChange--;
+        }
+      }
     }
-    while (pixels.get(x, y) == color);
-    pixels.set(x, y, color);
     pixels.commit();
     remaining--;
   }
@@ -359,6 +398,42 @@ void displayDemo(bool newDisplay) {
 }
 
 /**
+ * Start displaying the time at a certain hour
+ */
+void displayAlarm(bool newDisplay) {
+  static uint8_t darkness = 0;
+  static uint16_t onDelay = 0;
+  static bool inAlarm = false;
+  if (newDisplay) {
+   darkness = 0;
+   onDelay = 6;
+  }
+  if (newDisplay || skipSteps(1000)) {
+    if (onDelay > 0) {
+      onDelay--;
+      if (darkness > 0 && (onDelay & 1))
+        darkness--;
+      if (onDelay == 0) {
+        pixels.switchOff();
+      } else {
+        fixedTime(transitionColor(darkness, 150, current.color1), transitionColor(darkness, 150, current.color1), transitionColor(darkness, 150, current.color2));
+        pixels.commit();
+      }
+    }
+  }
+  if (current.hours == hour() && current.minutes == minute()) {
+    if (!inAlarm) {
+      // New alarm detected
+      darkness = 150;
+      onDelay = (60 + 5) * 60 + 1;
+      inAlarm = true;
+    }
+  } else {
+    inAlarm = false;
+  }
+}
+
+/**
  * Manage one generic display step
  */
 void display() {
@@ -384,6 +459,9 @@ void display() {
     case MODE_DEMO:
       displayDemo(newOrderReceived);
       break;
+    case MODE_ALARM:
+      displayAlarm(newOrderReceived);
+      break;
     case MODE_ADDRESS:
       displayAddress(newOrderReceived);
       break;
@@ -403,15 +481,19 @@ WebResponse listenToRequests(WebRequest &request) {
     // Get the mode
     current.mode = request.params.substring(0, 2).toInt();
     // Get the settings
-    if (current.mode == MODE_CLOCK || current.mode == MODE_COLOR || current.mode == MODE_TEXT)
+    if (current.mode == MODE_CLOCK || current.mode == MODE_COLOR || current.mode == MODE_TEXT || current.mode == MODE_ALARM)
       current.color1 = pixels.color(request.params.substring(2, 5).toInt(), request.params.substring(5, 8).toInt(), request.params.substring(8, 11).toInt());
-    if (current.mode == MODE_CLOCK || current.mode == MODE_TEXT)
+    if (current.mode == MODE_CLOCK || current.mode == MODE_TEXT || current.mode == MODE_ALARM)
       current.color2 = pixels.color(request.params.substring(11, 14).toInt(), request.params.substring(14, 17).toInt(), request.params.substring(17, 20).toInt());
     if (current.mode == MODE_TEXT)
       request.params.substring(20).toCharArray(current.text, MAX_TEXT_SIZE);
-    if (current.mode == MODE_CLOCK) {
+    if (current.mode == MODE_ALARM) {
+      current.hours = request.params.substring(20, 22).toInt();
+      current.minutes = request.params.substring(22, 24).toInt();
+    }
+    if (current.mode == MODE_CLOCK || current.mode == MODE_ALARM) {
       // Set the current time
-      time_t time = request.params.substring(20).toInt();
+      time_t time = request.params.substring(current.mode == MODE_CLOCK ? 20 : 24).toInt();
       RTC.set(time);
       setTime(time);
     }
@@ -476,12 +558,12 @@ void loop() {
   checkButton();
   // Display periodically
   static unsigned long lastDisplayEvent = 0;
-  const unsigned long now = micros();
-  const unsigned long next = lastDisplayEvent + DISPLAY_DELAY;
-  if (now >= next) {
+  const unsigned long timeNow = micros();
+  const unsigned long duration = timeNow - lastDisplayEvent;
+  if (duration >= DISPLAY_DELAY) {
     display();
-    lastDisplayEvent = now;
+    lastDisplayEvent = timeNow;
+    // Tell the watchdog the program is running properly
+    wdt_reset();
   }
-  // Tell the watchdog the program is running
-  wdt_reset();
 }

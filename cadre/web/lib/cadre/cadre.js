@@ -105,11 +105,21 @@ $(function() {
 				// The setting is a color, send the three color components
 				var color = settingEl.spectrum('get').toRgb();
 				$(['r','g','b']).each(function() {
-					string = '' + color[this];
+					var string = '' + color[this];
 					while (string.length < 3)
 						string = '0' + string;
 					toSend+= string;
 				});
+			} else if (settingEl.attr('type') == 'time') {
+				// The setting is a time, send the hours and minutes
+				var time = settingEl.val().split(':');
+				var string = time[1].trim();
+				while (string.length < 2)
+					string = '0' + string;
+				string = time[0].trim() + string;
+				while (string.length < 4)
+					string = '0' + string;
+				toSend+= string;
 			} else if (settingEl.attr('data-auto') == 'timestamp') {
 				// Automatic timestamp
 				toSend+= Math.floor(Date.now() / 1000 - (new Date()).getTimezoneOffset() * 60);

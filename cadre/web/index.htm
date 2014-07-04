@@ -24,10 +24,11 @@
 				<select id="mode">
 					<option value="off">Éteint</option>
 					<option value="clock">Horloge</option>
+					<option value="alarm">Réveil</option>
 					<option value="fixed">Couleur fixe</option>
 					<option value="gradient">Dégradé doux</option>
-					<option value="random">Pixels en folie</option>
 					<option value="text">Message</option>
+					<option value="random">Pixels en folie</option>
 					<option value="demo">Démo</option>
 				</select>
 			</div>
@@ -51,6 +52,24 @@
 						<input type="color" id="minuteColor" value="#0000ff" data-show-buttons="0" data-send="1" />
 					</p>
 				</div>
+				<div class="config" id="alarm" data-id="7">
+					<p class="description">
+						S'allume à une heure donnée et indique l'heure. Le cadre met 5 minutes à s'allumer progressivement, puis reste allumé pendant une heure.
+					</p>
+					<input type="hidden" data-send="3" data-auto="timestamp" />
+					<p>
+						<label for="alarmTime">Heure de réveil&nbsp;:</label>
+						<input type="time" id="alarmTime" value="7:00" data-show-buttons="0" data-send="2"/>
+					</p>
+					<p>
+						<label for="backAlarmColor">Couleur de fond&nbsp;:</label>
+						<input type="color" id="backAlarmColor" value="#ffff00" data-show-buttons="0" data-send="1" />
+					</p>
+					<p>
+						<label for="timeColor">Couleur de l'heure&nbsp;:</label>
+						<input type="color" id="timeColor" value="#ff0000" data-show-buttons="0" data-send="0" />
+					</p>
+				</div>
 				<div class="config" id="fixed" data-id="2">
 					<p class="description">
 						Affiche une couleur fixe sur la totalité du cadre.
@@ -63,11 +82,6 @@
 				<div class="config" id="gradient" data-id="3">
 					<p class="description">
 						Change graduellement la couleur du cadre en choisissant des couleurs au hasard.
-					</p>
-				</div>
-				<div class="config" id="random" data-id="4">
-					<p class="description">
-						Anime le cadre avec des pixels de toutes les couleurs.
 					</p>
 				</div>
 				<div class="config" id="text" data-id="5">
@@ -85,6 +99,11 @@
 					<p>
 						<label for="backTextColor">Couleur de fond&nbsp;:</label>
 						<input type="color" id="backTextColor" value="#000000" data-show-buttons="0" data-send="1" />
+					</p>
+				</div>
+				<div class="config" id="random" data-id="4">
+					<p class="description">
+						Anime le cadre avec des pixels de toutes les couleurs.
 					</p>
 				</div>
 				<div class="config" id="demo" data-id="6">

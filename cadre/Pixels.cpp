@@ -15,7 +15,7 @@ void Pixels::switchOn() {
   if (!isOn) {
     // Power the strip
     digitalWrite(powerPin, HIGH);
-    delay(1000);
+    delay(100);
     // Connect the data pin
     pinMode(dataPin, OUTPUT);
     digitalWrite(dataPin, LOW);
@@ -28,12 +28,13 @@ void Pixels::switchOff() {
     // Set the strip black
     clear();
     commit();
-    delay(1000);
+    delay(100);
     // Disconnect the data pin
     pinMode(dataPin, INPUT);
     digitalWrite(dataPin, LOW);
     // Cut power
     digitalWrite(powerPin, LOW);
+    delay(100);
     isOn = false;
   }
 }
