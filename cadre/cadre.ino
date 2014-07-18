@@ -1,3 +1,7 @@
+// This is the main sketch of the color frame.
+// It contains a control web server and the display control.
+// Think of loading colors in the EEPROM before using this sketch.
+
 #include <avr/wdt.h>
 #include <SPI.h>
 #include <Ethernet.h>
@@ -7,6 +11,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "Pixels.h"
 #include "WebServer.h"
+#include <EEPROM.h>
 
 // Hardware configuration
 #define STRIP_PIN_DATA 6
@@ -18,6 +23,10 @@
 // Maximum number of characters for a displayed message
 #define MAX_TEXT_SIZE 30
 
+// Number of colors stored in EEPROM
+#define COLOR_HUES 85
+#define COLOR_SATS 4
+
 // Working modes
 #define MODE_OFF 0
 #define MODE_CLOCK 1
@@ -27,6 +36,7 @@
 #define MODE_TEXT 5
 #define MODE_DEMO 6
 #define MODE_ALARM 7
+#define MODE_RAINBOW 8
 #define MODE_ADDRESS 255
 
 // MAC address of the server
@@ -94,6 +104,7 @@ typedef struct State {
   uint8_t hours;
   uint8_t minutes;
   char text[MAX_TEXT_SIZE];
+  uint8_t speed;
 } State;
 State current;
 
@@ -112,38 +123,6 @@ void saveCurrent() {
 }
 
 /**
- * Return a random color different enough from the last one.
- * and not too dark or too bright.
- * All values rango from 0 to 255.
- */
-uint32_t randomColor(uint8_t minLumi = 0, uint8_t maxLumi = 255, uint8_t minDist = 0) {
-  static uint8_t oldRed = 0, oldGreen = 0, oldBlue = 0;
-  uint8_t red, green, blue;
-  uint16_t luminance = 0;
-  uint16_t distance = 0;
-  do {
-    // Choose a color
-    red = random(256);
-    green = random(256);
-    blue = random(256);
-    // Compute luminance and distance from last color
-    luminance = red;
-    luminance+= red;
-    luminance+= blue;
-    luminance+= green;
-    luminance+= green;
-    luminance+= green;
-    luminance/= 6;
-    distance = (abs(red - oldRed) + abs(green - oldGreen) + abs(blue - oldBlue)) / 3;
-  } while (distance < minDist || luminance < minLumi || luminance > maxLumi);
-  // Return the color
-  oldRed = red;
-  oldGreen = green;
-  oldBlue = blue;
-  return pixels.color(red, green, blue);
-}
-
-/**
  * Mix 2 colors together.
  * If step = 0, this is color1, if step = maxStep, this is color2, between, this is a mix
  */
@@ -156,6 +135,38 @@ uint32_t transitionColor(uint8_t step, uint8_t maxStep, uint32_t color1, uint32_
   r1+= r2; g1+= g2; b1+= b2;
   r1/= maxStep; g1/= maxStep; b1/= maxStep; 
   return pixels.color(r1, g1, b1);
+}
+
+/**
+ * Load a color value from EEPROM
+ * depending on discrete hue and saturation values.
+ * Brightness is computed and can be any value from 0 to 255.
+ */
+uint32_t loadColor(uint8_t hue, uint8_t sat = COLOR_SATS-1, uint8_t bright = 255) {
+  uint16_t colorInd = (hue * COLOR_SATS + sat) * 3;
+  return transitionColor(255-bright, 255, pixels.color(EEPROM.read(colorInd), EEPROM.read(colorInd + 1), EEPROM.read(colorInd + 2)));
+}
+
+/**
+ * Return a random color with a minimum hue
+ * distance from the last random color.
+ * The brightness range can be changed.
+ */
+uint32_t randomColor(uint8_t minDist = 0, uint8_t minBright = 0, uint8_t maxBright = 255) {
+  static uint8_t oldHue = 0;
+  uint8_t hue, sat, bright;
+  uint16_t topBright;
+  do {
+    // Choose a color
+    hue = random(COLOR_HUES);
+  } while (!((hue <= oldHue && (oldHue - hue) >= minDist && (hue + COLOR_HUES - oldHue) >= minDist) ||
+    (hue > oldHue && (hue - oldHue >= minDist) && (oldHue + COLOR_HUES - hue) >= minDist)));
+  oldHue = hue;
+  sat = random(COLOR_SATS);
+  topBright = maxBright;
+  topBright+=1;
+  bright = random(minBright, topBright);
+  return loadColor(hue, sat, bright);
 }
 
 /**
@@ -291,7 +302,7 @@ void displayGradient(bool newDisplay) {
   static uint8_t remaining = 0;
   if (newDisplay || remaining == 0) {
     // Select a color
-    color = randomColor(20, 200, 60);
+    color = randomColor(10, 255, 255);
     // Count the number of pixels to change
     remaining = 0;
     for (uint8_t x = 0; x < pixels.width(); x++)
@@ -324,7 +335,7 @@ void displayGradient(bool newDisplay) {
  */
 void displayRandom(bool newDisplay) {
   if (skipSteps(5)) {
-    pixels.set(random(pixels.width()), random(pixels.height()), randomColor());
+    pixels.set(random(pixels.width()), random(pixels.height()), randomColor(1, 50));
     pixels.commit();
   }
 }
@@ -361,7 +372,7 @@ void displayDemo(bool newDisplay) {
     duration = 0;
     newMode = true;
   }
-  if (duration >= 30000) {
+  if (duration >= 10000) {
     // Change the mode
     if (mode == MODE_RANDOM) {
       mode = MODE_TEXT;
@@ -369,8 +380,9 @@ void displayDemo(bool newDisplay) {
       current.color1 = pixels.color(255, 255, 255);
       current.color2 = pixels.color(0, 0, 0);
     } else if (mode == MODE_TEXT) {
-      mode = MODE_GRADIENT;
-    } else if (mode == MODE_GRADIENT) {
+      current.speed = 255;
+      mode = MODE_RAINBOW;
+    } else if (mode == MODE_RAINBOW) {
       mode = MODE_CLOCK;
       current.color1 = pixels.color(180, 0, 0);
       current.color2 = pixels.color(100, 100, 0);
@@ -384,8 +396,8 @@ void displayDemo(bool newDisplay) {
     case MODE_CLOCK:
       displayClock(newMode);
       break;
-    case MODE_GRADIENT:
-      displayGradient(newMode);
+    case MODE_RAINBOW:
+      displayRainbow(newMode);
       break;
     case MODE_RANDOM:
       displayRandom(newMode);
@@ -434,6 +446,49 @@ void displayAlarm(bool newDisplay) {
 }
 
 /**
+ * Display a rainbow
+ */
+void displayRainbow(bool newDisplay) {
+  static uint8_t colorInd = 0, trans = 0, transMax;
+  uint32_t color;
+  int8_t diag, x, y;
+  if (newDisplay) {
+    // Set the speed by changing the number of transitions
+    uint8_t newTransMax = 90 - (current.speed / 3);
+    trans = (trans * newTransMax) / transMax;
+    transMax = newTransMax;
+  }
+  if (skipSteps(20)) {
+    // Update pixels by the diagonal
+    for (diag = 0; diag <= pixels.width() + pixels.height() - 2; diag++) {
+      color = transitionColor(trans, transMax, loadColor((colorInd + (diag)*2) % COLOR_HUES), loadColor((colorInd + (diag+1)*2) % COLOR_HUES));
+      if (diag >= pixels.height()) {
+        y = pixels.height() - 1;
+        x = diag - y;
+      } else {
+        x = 0;
+        y = diag;
+      }
+      while(x < pixels.width() && y >= 0) {
+        pixels.set(x, y, color);
+        x+= 1;
+        y-= 1;
+      }
+    }
+    // Get ready for next step
+    trans++;
+    if (trans >= transMax) {
+      trans = 0;
+      colorInd+=2;
+      if (colorInd >= COLOR_HUES)
+        colorInd = 0;
+    }
+    pixels.commit();
+  }
+}
+  
+
+/**
  * Manage one generic display step
  */
 void display() {
@@ -461,6 +516,9 @@ void display() {
       break;
     case MODE_ALARM:
       displayAlarm(newOrderReceived);
+      break;
+    case MODE_RAINBOW:
+      displayRainbow(newOrderReceived);
       break;
     case MODE_ADDRESS:
       displayAddress(newOrderReceived);
@@ -491,6 +549,8 @@ WebResponse listenToRequests(WebRequest &request) {
       current.hours = request.params.substring(20, 22).toInt();
       current.minutes = request.params.substring(22, 24).toInt();
     }
+    if (current.mode == MODE_RAINBOW)
+      current.speed = request.params.substring(2, 5).toInt();
     if (current.mode == MODE_CLOCK || current.mode == MODE_ALARM) {
       // Set the current time
       time_t time = request.params.substring(current.mode == MODE_CLOCK ? 20 : 24).toInt();

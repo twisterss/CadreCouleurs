@@ -29,6 +29,7 @@
 					<option value="gradient">Dégradé doux</option>
 					<option value="text">Message</option>
 					<option value="random">Pixels en folie</option>
+					<option value="rainbow">Arc en ciel</option>
 					<option value="demo">Démo</option>
 				</select>
 			</div>
@@ -90,7 +91,7 @@
 					</p>
 					<p>
 						<label for="text">Message&nbsp;:</label>
-						<input type="text" id="text" data-send="2" />
+						<input type="text" id="text" value="Bonjour" data-send="2" />
 					</p>
 					<p>
 						<label for="textColor">Couleur du texte&nbsp;:</label>
@@ -104,6 +105,15 @@
 				<div class="config" id="random" data-id="4">
 					<p class="description">
 						Anime le cadre avec des pixels de toutes les couleurs.
+					</p>
+				</div>
+				<div class="config" id="rainbow" data-id="8">
+					<p class="description">
+						Fait défiler un arc en ciel sur le cadre.
+					</p>
+					<p>
+						<label for="text">Vitesse&nbsp;:</label>
+						<input type="range" id="rainbowSpeed" value="127" min="0" max="255" data-send="0" />
 					</p>
 				</div>
 				<div class="config" id="demo" data-id="6">
