@@ -120,6 +120,13 @@ $(function() {
 				while (string.length < 4)
 					string = '0' + string;
 				toSend+= string;
+			} else if (settingEl.attr('type') == 'range') {
+				// The setting is a number in a range
+				var length = ('' + settingEl.prop('max')).length;
+				var value = settingEl.val();
+				while (value.length < length)
+					value = '0' + value;
+				toSend+= value;
 			} else if (settingEl.attr('data-auto') == 'timestamp') {
 				// Automatic timestamp
 				toSend+= Math.floor(Date.now() / 1000 - (new Date()).getTimezoneOffset() * 60);

@@ -105,6 +105,7 @@ typedef struct State {
   uint8_t minutes;
   char text[MAX_TEXT_SIZE];
   uint8_t speed;
+  uint8_t brightness;
 } State;
 State current;
 
@@ -142,7 +143,7 @@ uint32_t transitionColor(uint8_t step, uint8_t maxStep, uint32_t color1, uint32_
  * depending on discrete hue and saturation values.
  * Brightness is computed and can be any value from 0 to 255.
  */
-uint32_t loadColor(uint8_t hue, uint8_t sat = COLOR_SATS-1, uint8_t bright = 255) {
+uint32_t loadColor(uint8_t hue, uint8_t bright = 255, uint8_t sat = COLOR_SATS-1) {
   uint16_t colorInd = (hue * COLOR_SATS + sat) * 3;
   return transitionColor(255-bright, 255, pixels.color(EEPROM.read(colorInd), EEPROM.read(colorInd + 1), EEPROM.read(colorInd + 2)));
 }
@@ -150,9 +151,9 @@ uint32_t loadColor(uint8_t hue, uint8_t sat = COLOR_SATS-1, uint8_t bright = 255
 /**
  * Return a random color with a minimum hue
  * distance from the last random color.
- * The brightness range can be changed.
+ * The saturation and brightness ranges can be changed.
  */
-uint32_t randomColor(uint8_t minDist = 0, uint8_t minBright = 0, uint8_t maxBright = 255) {
+uint32_t randomColor(uint8_t minDist = 0, uint8_t minBright = 0, uint8_t maxBright = 255, uint8_t minSat = 0, uint8_t maxSat = COLOR_SATS-1) {
   static uint8_t oldHue = 0;
   uint8_t hue, sat, bright;
   uint16_t topBright;
@@ -162,11 +163,11 @@ uint32_t randomColor(uint8_t minDist = 0, uint8_t minBright = 0, uint8_t maxBrig
   } while (!((hue <= oldHue && (oldHue - hue) >= minDist && (hue + COLOR_HUES - oldHue) >= minDist) ||
     (hue > oldHue && (hue - oldHue >= minDist) && (oldHue + COLOR_HUES - hue) >= minDist)));
   oldHue = hue;
-  sat = random(COLOR_SATS);
   topBright = maxBright;
   topBright+=1;
   bright = random(minBright, topBright);
-  return loadColor(hue, sat, bright);
+  sat = random(minSat, maxSat+1);
+  return loadColor(hue, bright, sat);
 }
 
 /**
@@ -302,7 +303,7 @@ void displayGradient(bool newDisplay) {
   static uint8_t remaining = 0;
   if (newDisplay || remaining == 0) {
     // Select a color
-    color = randomColor(10, 255, 255);
+    color = randomColor(15, current.brightness, current.brightness, 2);
     // Count the number of pixels to change
     remaining = 0;
     for (uint8_t x = 0; x < pixels.width(); x++)
@@ -335,7 +336,7 @@ void displayGradient(bool newDisplay) {
  */
 void displayRandom(bool newDisplay) {
   if (skipSteps(5)) {
-    pixels.set(random(pixels.width()), random(pixels.height()), randomColor(1, 50));
+    pixels.set(random(pixels.width()), random(pixels.height()), randomColor(1, min(50, current.brightness), current.brightness));
     pixels.commit();
   }
 }
@@ -377,15 +378,15 @@ void displayDemo(bool newDisplay) {
     if (mode == MODE_RANDOM) {
       mode = MODE_TEXT;
       strcpy(current.text, "Cadre couleurs");
-      current.color1 = pixels.color(255, 255, 255);
+      current.color1 = pixels.color(current.brightness, current.brightness, current.brightness);
       current.color2 = pixels.color(0, 0, 0);
     } else if (mode == MODE_TEXT) {
       current.speed = 255;
       mode = MODE_RAINBOW;
     } else if (mode == MODE_RAINBOW) {
       mode = MODE_CLOCK;
-      current.color1 = pixels.color(180, 0, 0);
-      current.color2 = pixels.color(100, 100, 0);
+      current.color1 = transitionColor(255-current.brightness, 255, pixels.color(255, 0, 0));
+      current.color2 = transitionColor(255-current.brightness, 255, pixels.color(180, 180, 0));
     } else {
       mode = MODE_RANDOM;
     }
@@ -413,22 +414,39 @@ void displayDemo(bool newDisplay) {
  * Start displaying the time at a certain hour
  */
 void displayAlarm(bool newDisplay) {
-  static uint8_t darkness = 0;
+  static uint32_t color = 0;
+  static uint8_t colorStrength = 0;
+  static int8_t direction = 0;
   static uint16_t onDelay = 0;
   static bool inAlarm = false;
   if (newDisplay) {
-   darkness = 0;
-   onDelay = 6;
+   colorStrength = 0;
+   direction = 0;
+   onDelay = 5 * 10 + 1;
   }
-  if (newDisplay || skipSteps(1000)) {
+  if (newDisplay || skipSteps(100)) {
     if (onDelay > 0) {
       onDelay--;
-      if (darkness > 0 && (onDelay & 1))
-        darkness--;
+      if (direction == 1) {
+        // Choose a random color
+        if (colorStrength == 0)
+          color = randomColor(15, current.brightness, current.brightness, 2);
+        // Increment color strength
+        if (colorStrength < 255)
+          colorStrength++;
+        else
+          direction = -1;
+      } else if (direction == -1) {
+        // Decrement color strength
+        if (colorStrength > 0)
+          colorStrength--;
+        else
+          direction = 1;
+      }
       if (onDelay == 0) {
         pixels.switchOff();
       } else {
-        fixedTime(transitionColor(darkness, 150, current.color1), transitionColor(darkness, 150, current.color1), transitionColor(darkness, 150, current.color2));
+        fixedTime(transitionColor(colorStrength, 255, current.color1, color), transitionColor(colorStrength, 255, current.color2, color), transitionColor(colorStrength, 255, pixels.color(0, 0, 0), color));
         pixels.commit();
       }
     }
@@ -436,8 +454,9 @@ void displayAlarm(bool newDisplay) {
   if (current.hours == hour() && current.minutes == minute()) {
     if (!inAlarm) {
       // New alarm detected
-      darkness = 150;
-      onDelay = (60 + 5) * 60 + 1;
+      colorStrength = 0;
+      direction = 1;
+      onDelay = 60 * 60 * 10 + 1;
       inAlarm = true;
     }
   } else {
@@ -461,7 +480,7 @@ void displayRainbow(bool newDisplay) {
   if (skipSteps(20)) {
     // Update pixels by the diagonal
     for (diag = 0; diag <= pixels.width() + pixels.height() - 2; diag++) {
-      color = transitionColor(trans, transMax, loadColor((colorInd + (diag)*2) % COLOR_HUES), loadColor((colorInd + (diag+1)*2) % COLOR_HUES));
+      color = transitionColor(trans, transMax, loadColor((colorInd + (diag)*2) % COLOR_HUES, current.brightness), loadColor((colorInd + (diag+1)*2) % COLOR_HUES, current.brightness));
       if (diag >= pixels.height()) {
         y = pixels.height() - 1;
         x = diag - y;
@@ -534,28 +553,43 @@ void display() {
 WebResponse listenToRequests(WebRequest &request) {
   if (request.resource == "setMode") {
     // Received a request to change the current mode
+    uint8_t offset = 0;
     // Decode url-encoding
     request.params.replace("%20", " ");
     // Get the mode
-    current.mode = request.params.substring(0, 2).toInt();
+    current.mode = request.params.substring(offset, offset+2).toInt();
+    offset+= 2;
     // Get the settings
-    if (current.mode == MODE_CLOCK || current.mode == MODE_COLOR || current.mode == MODE_TEXT || current.mode == MODE_ALARM)
-      current.color1 = pixels.color(request.params.substring(2, 5).toInt(), request.params.substring(5, 8).toInt(), request.params.substring(8, 11).toInt());
-    if (current.mode == MODE_CLOCK || current.mode == MODE_TEXT || current.mode == MODE_ALARM)
-      current.color2 = pixels.color(request.params.substring(11, 14).toInt(), request.params.substring(14, 17).toInt(), request.params.substring(17, 20).toInt());
-    if (current.mode == MODE_TEXT)
-      request.params.substring(20).toCharArray(current.text, MAX_TEXT_SIZE);
-    if (current.mode == MODE_ALARM) {
-      current.hours = request.params.substring(20, 22).toInt();
-      current.minutes = request.params.substring(22, 24).toInt();
+    if (current.mode == MODE_CLOCK || current.mode == MODE_COLOR || current.mode == MODE_TEXT || current.mode == MODE_ALARM) {
+      current.color1 = pixels.color(request.params.substring(offset, offset+3).toInt(), request.params.substring(offset+3, offset+6).toInt(), request.params.substring(offset+6, offset+9).toInt());
+      offset+= 9;
     }
-    if (current.mode == MODE_RAINBOW)
-      current.speed = request.params.substring(2, 5).toInt();
+    if (current.mode == MODE_CLOCK || current.mode == MODE_TEXT || current.mode == MODE_ALARM) {
+      current.color2 = pixels.color(request.params.substring(offset, offset+3).toInt(), request.params.substring(offset+3, offset+6).toInt(), request.params.substring(offset+6, offset+9).toInt());
+      offset+= 9;
+    }
+    if (current.mode == MODE_ALARM) {
+      current.hours = request.params.substring(offset, offset+2).toInt();
+      offset+= 2;
+      current.minutes = request.params.substring(offset, offset+2).toInt();
+      offset+= 2;
+    }
+    if (current.mode == MODE_RAINBOW) {
+      current.speed = request.params.substring(offset, offset+3).toInt();
+      offset+=3;
+    }
+    if (current.mode == MODE_RAINBOW || current.mode == MODE_RANDOM || current.mode == MODE_GRADIENT || current.mode == MODE_DEMO || current.mode == MODE_ALARM) {
+      current.brightness = request.params.substring(offset, offset+3).toInt();
+      offset+=3;
+    }
     if (current.mode == MODE_CLOCK || current.mode == MODE_ALARM) {
       // Set the current time
-      time_t time = request.params.substring(current.mode == MODE_CLOCK ? 20 : 24).toInt();
+      time_t time = request.params.substring(offset).toInt();
       RTC.set(time);
       setTime(time);
+    }
+    if (current.mode == MODE_TEXT) {
+      request.params.substring(offset).toCharArray(current.text, MAX_TEXT_SIZE);
     }
     // Save the state in RTC RAM
     saveCurrent();
@@ -602,6 +636,7 @@ void setup() {
   if (!server.isConnected()) { 
     // No connection: demo mode
     current.mode = MODE_DEMO;
+    current.brightness = 255;
   } else {
     // Connection: back to last mode
     loadCurrent();

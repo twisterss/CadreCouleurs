@@ -25,11 +25,11 @@
 					<option value="off">Éteint</option>
 					<option value="clock">Horloge</option>
 					<option value="alarm">Réveil</option>
+					<option value="text">Message</option>
 					<option value="fixed">Couleur fixe</option>
 					<option value="gradient">Dégradé doux</option>
-					<option value="text">Message</option>
-					<option value="random">Pixels en folie</option>
 					<option value="rainbow">Arc en ciel</option>
+					<option value="random">Pixels en folie</option>
 					<option value="demo">Démo</option>
 				</select>
 			</div>
@@ -55,20 +55,24 @@
 				</div>
 				<div class="config" id="alarm" data-id="7">
 					<p class="description">
-						S'allume à une heure donnée et indique l'heure. Le cadre met 5 minutes à s'allumer progressivement, puis reste allumé pendant une heure.
+						S'allume à une heure donnée et indique l'heure. Le cadre alterne ensuite entre heure et couleur aléatoire pendant une heure. La luminosité s'applique aux couleurs aléatoires.
 					</p>
-					<input type="hidden" data-send="3" data-auto="timestamp" />
+					<input type="hidden" data-send="4" data-auto="timestamp" />
 					<p>
 						<label for="alarmTime">Heure de réveil&nbsp;:</label>
 						<input type="time" id="alarmTime" value="7:00" data-show-buttons="0" data-send="2"/>
 					</p>
 					<p>
-						<label for="backAlarmColor">Couleur de fond&nbsp;:</label>
-						<input type="color" id="backAlarmColor" value="#ffff00" data-show-buttons="0" data-send="1" />
+						<label for="hourAlarmColor">Couleur des heures&nbsp;:</label>
+						<input type="color" id="hourAlarmColor" value="#ff0000" data-show-buttons="0" data-send="0" />
 					</p>
 					<p>
-						<label for="timeColor">Couleur de l'heure&nbsp;:</label>
-						<input type="color" id="timeColor" value="#ff0000" data-show-buttons="0" data-send="0" />
+						<label for="minuteAlarmColor">Couleur des minutes&nbsp;:</label>
+						<input type="color" id="minuteAlarmColor" value="#0000ff" data-show-buttons="0" data-send="1" />
+					</p>
+					<p>
+						<label for="alarmBrightness">Luminosité&nbsp;:</label>
+						<input type="range" id="alarmBrightness" value="127" min="10" max="255" data-send="3" />
 					</p>
 				</div>
 				<div class="config" id="fixed" data-id="2">
@@ -83,6 +87,10 @@
 				<div class="config" id="gradient" data-id="3">
 					<p class="description">
 						Change graduellement la couleur du cadre en choisissant des couleurs au hasard.
+					</p>
+					<p>
+						<label for="gradientBrightness">Luminosité&nbsp;:</label>
+						<input type="range" id="gradientBrightness" value="127" min="10" max="255" data-send="0" />
 					</p>
 				</div>
 				<div class="config" id="text" data-id="5">
@@ -106,19 +114,31 @@
 					<p class="description">
 						Anime le cadre avec des pixels de toutes les couleurs.
 					</p>
+					<p>
+						<label for="randomBrightness">Luminosité&nbsp;:</label>
+						<input type="range" id="randomBrightness" value="127" min="10" max="255" data-send="0" />
+					</p>
 				</div>
 				<div class="config" id="rainbow" data-id="8">
 					<p class="description">
 						Fait défiler un arc en ciel sur le cadre.
 					</p>
 					<p>
-						<label for="text">Vitesse&nbsp;:</label>
+						<label for="rainbowSpeed">Vitesse&nbsp;:</label>
 						<input type="range" id="rainbowSpeed" value="127" min="0" max="255" data-send="0" />
+					</p>
+					<p>
+						<label for="rainbowBrightness">Luminosité&nbsp;:</label>
+						<input type="range" id="rainbowBrightness" value="127" min="30" max="255" data-send="1" />
 					</p>
 				</div>
 				<div class="config" id="demo" data-id="6">
 					<p class="description">
 						Démonstration des fonctions principales du cadre.
+					</p>
+					<p>
+						<label for="demoBrightness">Luminosité&nbsp;:</label>
+						<input type="range" id="demoBrightness" value="127" min="30" max="255" data-send="0" />
 					</p>
 				</div>
 			</div>
