@@ -103,7 +103,7 @@ $(function() {
 		while (settingEl.length > 0) {
 			if (settingEl.attr('type') == 'color') {
 				// The setting is a color, send the three color components
-				var color = settingEl.spectrum('get').toRgb();
+				var color = tinycolor(settingEl.val()).toRgb();
 				$(['r','g','b']).each(function() {
 					var string = '' + color[this];
 					while (string.length < 3)
