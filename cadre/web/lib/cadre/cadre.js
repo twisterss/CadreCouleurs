@@ -104,7 +104,7 @@ $(function() {
 			if (settingEl.attr('type') == 'color') {
 				// The setting is a color, send the three color components
 				var color;
-				if (typeof(settingEl.spectrum("get").toRgb) == "function"))
+				if (typeof(settingEl.spectrum("get").toRgb) == "function")
 					color = settingEl.spectrum("get").toRgb();
 				else
 					color = tinycolor(settingEl.val()).toRgb();
