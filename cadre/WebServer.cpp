@@ -5,19 +5,18 @@ void WebServer::registerServeMethod(DynamicServeMethod callback) {
 }
 
 void WebServer::begin(byte mac[6]) {
-  if (started)
-    return;
   Ethernet.begin(mac);
-  this->server.begin();
   started = true;
+  if (isConnected())
+    server.begin();
 }
 
 
 void WebServer::begin(byte mac[6], const IPAddress &ip) {
-  if (started)
-    return;
   Ethernet.begin(mac, ip);
-  this->server.begin();
+  started = true;
+  if (isConnected())
+    server.begin();
 }
 
 bool WebServer::isConnected() {

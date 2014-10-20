@@ -621,26 +621,26 @@ void setup() {
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   // Pixels initialization
   pixels.begin();
-  // Network initialization (skiped if the button is pushed)
-  if (digitalRead(BUTTON_PIN) == HIGH) {
-    server.registerServeMethod(listenToRequests);
-    server.begin(mac);
-  }
-  // Watchdog initialization, only after long network intialization
-  wdt_enable(WDTO_4S);
   // Random generator initialization
   randomSeed(analogRead(0));
   // Time (RTC clock) initialization
   setSyncProvider(RTC.get);
-  // Initial mode selection
-  if (!server.isConnected()) { 
+  // Network initialization (skiped if the button is pushed)
+  if (digitalRead(BUTTON_PIN) == HIGH) {
+    server.registerServeMethod(listenToRequests);
+    // Keep trying to connect
+    do {
+      server.begin(mac);
+    } while (!server.isConnected());
+    // Connection done: load last mode from memory
+    loadCurrent();
+  } else {
     // No connection: demo mode
     current.mode = MODE_DEMO;
     current.brightness = 255;
-  } else {
-    // Connection: back to last mode
-    loadCurrent();
   }
+  // Watchdog initialization, only after long network intialization
+  wdt_enable(WDTO_4S);
 }
 
 /**
