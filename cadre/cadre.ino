@@ -35,7 +35,6 @@
 #define MODE_RANDOM 4
 #define MODE_TEXT 5
 #define MODE_DEMO 6
-#define MODE_ALARM 7
 #define MODE_RAINBOW 8
 #define MODE_ADDRESS 255
 
@@ -45,7 +44,7 @@ byte mac[] = {
 };
 
 // Letters to display (5x5)
-const byte letters[38][5] = {
+const byte letters[][5] = {
   {0x7c,0x44,0x44,0x7c,0x44}, // A
   {0x7c,0x44,0x78,0x44,0x7c},  
   {0x7c,0x40,0x40,0x40,0x7c},  
@@ -83,7 +82,10 @@ const byte letters[38][5] = {
   {0x38,0x44,0x38,0x44,0x38},
   {0x7C,0x44,0x7C,0x04,0x7C}, // 9  
   {0x00,0x00,0x00,0x00,0x00}, // space
-  {0x00,0x00,0x00,0x30,0x30}  // dot
+  {0x00,0x00,0x00,0x30,0x30}, // dot
+  {0x28,0x7C,0x7C,0x38,0x10}, // heart
+  {0x00,0x28,0x00,0x44,0x38}, // happy smiley
+  {0x00,0x28,0x00,0x38,0x44}  // unhappy smiley
 };
 
 // Web server
@@ -101,8 +103,6 @@ typedef struct State {
   uint8_t mode;
   uint32_t color1;
   uint32_t color2;
-  uint8_t hours;
-  uint8_t minutes;
   char text[MAX_TEXT_SIZE];
   uint8_t speed;
   uint8_t brightness;
@@ -187,15 +187,21 @@ void fixedText(const char* string, uint32_t color, int16_t startX = 0, int16_t s
       letter = string[letterIndex];
       // Convert ASCII to table index
       if (letter >= 65 && letter <= 90)
-        letter-= 65;
+        letter-= 65; // upper case
       else if (letter >= 97 && letter <= 122)
-        letter-= 97;
+        letter-= 97; // lower case
       else if (letter >= 48 && letter <= 57)
-        letter-= 22;
+        letter-= 22; // numbers
       else if (letter == 46)
-        letter = 37;
+        letter = 37; // dot
+      else if (letter == 60)
+        letter = 38; // heart
+      else if (letter == 41)
+        letter = 39; // happy smiley
+      else if (letter == 40)
+        letter = 40; // unhappy smiley
       else
-        letter = 36;
+        letter = 36; // space
       letterIndex++;
     }
     for (int16_t y = startY; y < pixels.height() && y < startY + 5; y++) {
@@ -377,7 +383,6 @@ void displayDemo(bool newDisplay) {
     // Change the mode
     if (mode == MODE_RANDOM) {
       mode = MODE_TEXT;
-      strcpy(current.text, "Cadre couleurs");
       current.color1 = pixels.color(current.brightness, current.brightness, current.brightness);
       current.color2 = pixels.color(0, 0, 0);
     } else if (mode == MODE_TEXT) {
@@ -410,59 +415,6 @@ void displayDemo(bool newDisplay) {
   duration++;
 }
 
-/**
- * Start displaying the time at a certain hour
- */
-void displayAlarm(bool newDisplay) {
-  static uint32_t color = 0;
-  static uint8_t colorStrength = 0;
-  static int8_t direction = 0;
-  static uint16_t onDelay = 0;
-  static bool inAlarm = false;
-  if (newDisplay) {
-   colorStrength = 0;
-   direction = 0;
-   onDelay = 5 * 10 + 1;
-  }
-  if (newDisplay || skipSteps(100)) {
-    if (onDelay > 0) {
-      onDelay--;
-      if (direction == 1) {
-        // Choose a random color
-        if (colorStrength == 0)
-          color = randomColor(15, current.brightness, current.brightness, 2);
-        // Increment color strength
-        if (colorStrength < 255)
-          colorStrength++;
-        else
-          direction = -1;
-      } else if (direction == -1) {
-        // Decrement color strength
-        if (colorStrength > 0)
-          colorStrength--;
-        else
-          direction = 1;
-      }
-      if (onDelay == 0) {
-        pixels.switchOff();
-      } else {
-        fixedTime(transitionColor(colorStrength, 255, current.color1, color), transitionColor(colorStrength, 255, current.color2, color), transitionColor(colorStrength, 255, pixels.color(0, 0, 0), color));
-        pixels.commit();
-      }
-    }
-  }
-  if (current.hours == hour() && current.minutes == minute()) {
-    if (!inAlarm) {
-      // New alarm detected
-      colorStrength = 0;
-      direction = 1;
-      onDelay = 60 * 60 * 10 + 1;
-      inAlarm = true;
-    }
-  } else {
-    inAlarm = false;
-  }
-}
 
 /**
  * Display a rainbow
@@ -533,9 +485,6 @@ void display() {
     case MODE_DEMO:
       displayDemo(newOrderReceived);
       break;
-    case MODE_ALARM:
-      displayAlarm(newOrderReceived);
-      break;
     case MODE_RAINBOW:
       displayRainbow(newOrderReceived);
       break;
@@ -556,39 +505,34 @@ WebResponse listenToRequests(WebRequest &request) {
     uint8_t offset = 0;
     // Decode url-encoding
     request.params.replace("%20", " ");
+    request.params.replace("%3C", "<");
     // Get the mode
     current.mode = request.params.substring(offset, offset+2).toInt();
     offset+= 2;
     // Get the settings
-    if (current.mode == MODE_CLOCK || current.mode == MODE_COLOR || current.mode == MODE_TEXT || current.mode == MODE_ALARM) {
+    if (current.mode == MODE_CLOCK || current.mode == MODE_COLOR || current.mode == MODE_TEXT) {
       current.color1 = pixels.color(request.params.substring(offset, offset+3).toInt(), request.params.substring(offset+3, offset+6).toInt(), request.params.substring(offset+6, offset+9).toInt());
       offset+= 9;
     }
-    if (current.mode == MODE_CLOCK || current.mode == MODE_TEXT || current.mode == MODE_ALARM) {
+    if (current.mode == MODE_CLOCK || current.mode == MODE_TEXT) {
       current.color2 = pixels.color(request.params.substring(offset, offset+3).toInt(), request.params.substring(offset+3, offset+6).toInt(), request.params.substring(offset+6, offset+9).toInt());
       offset+= 9;
-    }
-    if (current.mode == MODE_ALARM) {
-      current.hours = request.params.substring(offset, offset+2).toInt();
-      offset+= 2;
-      current.minutes = request.params.substring(offset, offset+2).toInt();
-      offset+= 2;
     }
     if (current.mode == MODE_RAINBOW) {
       current.speed = request.params.substring(offset, offset+3).toInt();
       offset+=3;
     }
-    if (current.mode == MODE_RAINBOW || current.mode == MODE_RANDOM || current.mode == MODE_GRADIENT || current.mode == MODE_DEMO || current.mode == MODE_ALARM) {
+    if (current.mode == MODE_RAINBOW || current.mode == MODE_RANDOM || current.mode == MODE_GRADIENT || current.mode == MODE_DEMO) {
       current.brightness = request.params.substring(offset, offset+3).toInt();
       offset+=3;
     }
-    if (current.mode == MODE_CLOCK || current.mode == MODE_ALARM) {
+    if (current.mode == MODE_CLOCK) {
       // Set the current time
       time_t time = request.params.substring(offset).toInt();
       RTC.set(time);
       setTime(time);
     }
-    if (current.mode == MODE_TEXT) {
+    if (current.mode == MODE_TEXT || current.mode == MODE_DEMO) {
       request.params.substring(offset).toCharArray(current.text, MAX_TEXT_SIZE);
     }
     // Save the state in RTC RAM
@@ -638,6 +582,7 @@ void setup() {
     // No connection: demo mode
     current.mode = MODE_DEMO;
     current.brightness = 255;
+    strcpy(current.text, "Cadre couleurs");
   }
   // Watchdog initialization, only after long network intialization
   wdt_enable(WDTO_4S);

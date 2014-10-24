@@ -24,7 +24,6 @@
 				<select id="mode">
 					<option value="off">Éteint</option>
 					<option value="clock">Horloge</option>
-					<option value="alarm">Réveil</option>
 					<option value="text">Message</option>
 					<option value="fixed">Couleur fixe</option>
 					<option value="gradient">Dégradé doux</option>
@@ -51,28 +50,6 @@
 					<p>
 						<label for="minuteColor">Couleur des minutes&nbsp;:</label>
 						<input type="color" id="minuteColor" value="#0000ff" data-show-buttons="0" data-send="1" />
-					</p>
-				</div>
-				<div class="config" id="alarm" data-id="7">
-					<p class="description">
-						S'allume à une heure donnée et indique l'heure. Le cadre alterne ensuite entre heure et couleur aléatoire pendant une heure. La luminosité s'applique aux couleurs aléatoires.
-					</p>
-					<input type="hidden" data-send="4" data-auto="timestamp" />
-					<p>
-						<label for="alarmTime">Heure de réveil&nbsp;:</label>
-						<input type="time" id="alarmTime" value="7:00" data-show-buttons="0" data-send="2"/>
-					</p>
-					<p>
-						<label for="hourAlarmColor">Couleur des heures&nbsp;:</label>
-						<input type="color" id="hourAlarmColor" value="#ff0000" data-show-buttons="0" data-send="0" />
-					</p>
-					<p>
-						<label for="minuteAlarmColor">Couleur des minutes&nbsp;:</label>
-						<input type="color" id="minuteAlarmColor" value="#0000ff" data-show-buttons="0" data-send="1" />
-					</p>
-					<p>
-						<label for="alarmBrightness">Luminosité&nbsp;:</label>
-						<input type="range" id="alarmBrightness" value="127" min="10" max="255" data-send="3" />
 					</p>
 				</div>
 				<div class="config" id="fixed" data-id="2">
@@ -135,6 +112,10 @@
 				<div class="config" id="demo" data-id="6">
 					<p class="description">
 						Démonstration des fonctions principales du cadre.
+					</p>
+					<p>
+						<label for="demoText">Message&nbsp;:</label>
+						<input type="text" id="demoText" value="Cadre couleurs" data-send="1" />
 					</p>
 					<p>
 						<label for="demoBrightness">Luminosité&nbsp;:</label>
