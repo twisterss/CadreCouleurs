@@ -1,8 +1,8 @@
 $fn = 50;
 
-content_width = 53.5;
+content_width = 54;
 content_depth = 72;
-content_height = 46;
+content_height = 50;
 wall = 1.5;
 screw_sep = 5;
 screw_bottom = 21;
@@ -65,5 +65,5 @@ module end() {
 	}
 }
 
-//box();
+box();
 end();
