@@ -1,2 +1,9 @@
-
+# 3D printer files
 *.gcode
+# Eagle work files
+*.job
+*.b#*
+*.s#*
+*.l#*
+*.epf
+*.pro
